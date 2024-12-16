@@ -3,6 +3,7 @@ import joblib
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.exceptions import NotFittedError
 
 # Load the overall model evaluation file
 def load_model_evaluation(file_path):
@@ -89,11 +90,19 @@ def main():
                         # Prepare input data for prediction (macroeconomic parameters)
                         input_data = np.array([[gdp, inflation, interest_rate, vix]])
                         
-                        # Predict the stock returns using the pre-trained model
-                        predicted_returns = model.predict(input_data)
+                        try:
+                            # Ensure that the model has been fitted before predicting
+                            if model.named_steps['model'].score == 'not_fitted':
+                                st.error(f"The model for {stock_name} is not yet fitted.")
+                            else:
+                                # Predict the stock returns using the pre-trained model
+                                predicted_returns = model.predict(input_data)
 
-                        # Show historical performance and predicted returns
-                        show_stock_performance(stock_data, predicted_returns)
+                                # Show historical performance and predicted returns
+                                show_stock_performance(stock_data, predicted_returns)
+                        except NotFittedError as e:
+                            st.error(f"Model for {stock_name} is not fitted: {e}")
+
     else:
         st.warning("Please upload a pre-trained model file.")
 

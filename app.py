@@ -3,7 +3,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.pipeline import Pipeline  # Import Pipeline
+from sklearn.pipeline import Pipeline
 from sklearn.exceptions import NotFittedError
 from xgboost import XGBRegressor
 
@@ -11,7 +11,6 @@ from xgboost import XGBRegressor
 def load_model_evaluation(file_path):
     try:
         model = joblib.load(file_path)
-        
         if isinstance(model, list):
             st.write("Loaded model is a list (perhaps multiple models).")
         elif isinstance(model, Pipeline):
@@ -33,6 +32,21 @@ def load_model_evaluation(file_path):
         st.error(f"Error loading model: {e}")
         return None
 
+# Display model parameters for XGBRegressor or pipeline
+def display_model_params(model):
+    st.subheader("Model Parameters")
+    if isinstance(model, Pipeline):
+        if 'model' in model.named_steps:
+            params = model.named_steps['model'].get_params()
+            st.write(params)
+        else:
+            st.error("Pipeline does not have 'model' step.")
+    elif isinstance(model, XGBRegressor):
+        params = model.get_params()
+        st.write(params)
+    else:
+        st.error("Model is not recognized.")
+
 # Display model evaluation results
 def display_evaluation_results(overall_results):
     st.subheader("Model Evaluation Results")
@@ -46,6 +60,18 @@ def display_evaluation_results(overall_results):
     else:
         st.error("Evaluation results are not in the expected format.")
 
+# Historical stock performance and predicted returns
+def show_stock_performance(stock_data, predicted_returns):
+    st.subheader("Historical Stock Performance and Predicted Returns")
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(stock_data['Close'], label="Historical Close Price", color='blue')
+    ax.plot(stock_data.index, predicted_returns, label="Predicted Returns", color='red', linestyle='--')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Price / Predicted Returns')
+    ax.set_title('Historical Stock Performance and Predicted Returns')
+    ax.legend()
+    st.pyplot(fig)
+
 # Main Streamlit app
 def main():
     st.title("Stock Prediction with Macroeconomic Parameters")
@@ -58,6 +84,42 @@ def main():
             display_model_params(model_pipeline)
             overall_results = model_pipeline if isinstance(model_pipeline, list) else []
             display_evaluation_results(overall_results)
+            
+            available_stocks = [result['stock'] for result in overall_results] if overall_results else []
+            selected_stocks = st.multiselect("Select stocks for prediction", available_stocks)
+            
+            if selected_stocks:
+                st.subheader("Enter Macroeconomic Parameters")
+                gdp = st.slider("GDP Growth (%)", min_value=-5, max_value=5, value=2)
+                inflation = st.slider("Inflation (%)", min_value=0, max_value=10, value=2)
+                interest_rate = st.slider("Interest Rate (%)", min_value=0, max_value=10, value=2)
+                vix = st.slider("VIX Index", min_value=10, max_value=100, value=20)
+                
+                if st.button("Simulate and Predict"):
+                    for stock_name in selected_stocks:
+                        stock_result = next((result for result in overall_results if result['stock'] == stock_name), None)
+                        model = stock_result['model'] if stock_result else None
+
+                        if model:
+                            stock_data = pd.read_excel(f"stockdata/{stock_name}.xlsx", engine='openpyxl')
+                            stock_data['Date'] = pd.to_datetime(stock_data['Date'])
+                            stock_data.set_index('Date', inplace=True)
+
+                            input_data = np.array([[gdp, inflation, interest_rate, vix]])
+                            try:
+                                if isinstance(model, XGBRegressor) and hasattr(model, 'booster_'):
+                                    predicted_returns = model.predict(input_data)
+                                    show_stock_performance(stock_data, predicted_returns)
+                                elif isinstance(model, Pipeline):
+                                    if hasattr(model.named_steps['model'], 'booster_'):
+                                        predicted_returns = model.predict(input_data)
+                                        show_stock_performance(stock_data, predicted_returns)
+                                    else:
+                                        st.error(f"Model for {stock_name} is not fitted.")
+                                else:
+                                    st.error(f"Unexpected model type for {stock_name}.")
+                            except NotFittedError as e:
+                                st.error(f"Model for {stock_name} is not fitted: {e}")
         else:
             st.error("Failed to load the model. Please check the file format.")
     else:

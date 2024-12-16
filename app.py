@@ -40,8 +40,12 @@ def load_model_evaluation(file_path):
 def display_model_params(model):
     st.subheader("Model Parameters")
     if isinstance(model, Pipeline):
-        params = model.named_steps['model'].get_params()
-        st.write(params)
+        # Display the model parameters of the 'model' step
+        if 'model' in model.named_steps:
+            params = model.named_steps['model'].get_params()
+            st.write(params)
+        else:
+            st.error("Pipeline does not have 'model' step.")
     elif isinstance(model, XGBRegressor):
         params = model.get_params()
         st.write(params)
@@ -112,7 +116,7 @@ def main():
                         model = stock_result['model']
                         
                         # Load historical stock data for selected stock
-                        stock_data = pd.read_excel(f"stockdata/{stock_name}", engine='openpyxl')
+                        stock_data = pd.read_excel(f"stockdata/{stock_name}.xlsx", engine='openpyxl')
                         stock_data['Date'] = pd.to_datetime(stock_data['Date'])
                         stock_data.set_index('Date', inplace=True)
 

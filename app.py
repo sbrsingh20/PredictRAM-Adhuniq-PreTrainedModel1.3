@@ -12,6 +12,7 @@ def load_model_evaluation(file_path):
     try:
         # Load the pre-trained model (pipeline or model)
         model = joblib.load(file_path)
+        
         # Check if the model is a pipeline or just a trained model
         if isinstance(model, list):
             st.write("Loaded model is a list (perhaps multiple models).")

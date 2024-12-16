@@ -116,10 +116,12 @@ def main():
                                 input_data = np.array([[gdp, inflation, interest_rate, vix]])
                                 try:
                                     if isinstance(model, XGBRegressor) and hasattr(model, 'booster_'):
+                                        st.write(f"Predicting with XGBRegressor for {stock_name}...")
                                         predicted_returns = model.predict(input_data)
                                         show_stock_performance(stock_data, predicted_returns)
                                     elif isinstance(model, Pipeline):
                                         if hasattr(model.named_steps['model'], 'booster_'):
+                                            st.write(f"Predicting with pipeline model for {stock_name}...")
                                             predicted_returns = model.predict(input_data)
                                             show_stock_performance(stock_data, predicted_returns)
                                         else:

@@ -8,17 +8,15 @@ from sklearn.exceptions import NotFittedError
 from xgboost import XGBRegressor
 import os
 
-# Path to the folder where stock models are stored (e.g., result folder)
 RESULT_FOLDER = 'result/'
 
 # Load a pre-trained model from a .pkl file
 def load_model(file_path):
     try:
         model = joblib.load(file_path)
-        if isinstance(model, list):
-            st.write("Loaded model is a list (perhaps multiple models).")
-        elif isinstance(model, Pipeline):
+        if isinstance(model, Pipeline):
             st.write("Loaded model is a pipeline.")
+            # Check if the model inside the pipeline is fitted
             if hasattr(model.named_steps['model'], 'booster_'):
                 st.write("Pipeline model is fitted.")
             else:
@@ -36,33 +34,17 @@ def load_model(file_path):
         st.error(f"Error loading model: {e}")
         return None
 
-# Display model parameters for XGBRegressor or pipeline
-def display_model_params(model):
-    st.subheader("Model Parameters")
+# Check if the model inside the pipeline is fitted
+def check_model_fitted(model):
+    # Check if the pipeline contains a model that is an instance of XGBRegressor
     if isinstance(model, Pipeline):
         if 'model' in model.named_steps:
-            params = model.named_steps['model'].get_params()
-            st.write(params)
-        else:
-            st.error("Pipeline does not have 'model' step.")
-    elif isinstance(model, XGBRegressor):
-        params = model.get_params()
-        st.write(params)
-    else:
-        st.error("Model is not recognized.")
-
-# Display model evaluation results
-def display_evaluation_results(overall_results):
-    st.subheader("Model Evaluation Results")
-    if isinstance(overall_results, list):
-        for result in overall_results:
-            st.write(f"**Stock**: {result.get('stock', 'Unknown')}")
-            st.write(f"**Accuracy (R-squared %)**: {result.get('accuracy', 0):.4f}%")
-            st.write(f"**R-squared**: {result.get('r2_score', 0):.4f}")
-            st.write(f"**Mean Squared Error**: {result.get('mean_squared_error', 0):.4f}")
-            st.write("="*40)
-    else:
-        st.error("Evaluation results are not in the expected format.")
+            inner_model = model.named_steps['model']
+            if hasattr(inner_model, 'booster_'):  # XGBoost models have 'booster_' attribute when fitted
+                return True
+            else:
+                return False
+    return False
 
 # Historical stock performance and predicted returns
 def show_stock_performance(stock_data, predicted_returns):
@@ -78,7 +60,6 @@ def show_stock_performance(stock_data, predicted_returns):
 
 # Check if the model is pre-trained or needs training
 def check_and_train_model(stock_name, stock_data):
-    # Define the model if it's not loaded yet
     model = None
 
     # Check if model already exists in the result folder
@@ -87,12 +68,16 @@ def check_and_train_model(stock_name, stock_data):
         # Load the pre-trained model if it exists
         st.write(f"Loading pre-trained model for {stock_name}...")
         model = load_model(model_path)
+        # Check if model is fitted
+        if model and not check_model_fitted(model):
+            st.error(f"Model for {stock_name} is not fitted.")
+            return None
     else:
         st.write(f"No pre-trained model found for {stock_name}. Training a new model...")
-
-        # Prepare data (example, can be adjusted as per available features)
-        X = stock_data[['GDP Growth', 'Inflation', 'Interest Rate', 'VIX']]  # Assumed features
-        y = stock_data['Close']  # Target variable, assuming you're predicting the Close price
+        
+        # Train new model (example)
+        X = stock_data[['GDP Growth', 'Inflation', 'Interest Rate', 'VIX']]  # Features
+        y = stock_data['Close']  # Target variable
 
         # Define and train a new model
         model = XGBRegressor()
@@ -113,11 +98,8 @@ def main():
         model_pipeline = load_model(uploaded_model)
         
         if model_pipeline:
-            display_model_params(model_pipeline)
-            overall_results = model_pipeline if isinstance(model_pipeline, list) else []
-            display_evaluation_results(overall_results)
-            
-            available_stocks = [result['stock'] for result in overall_results] if overall_results else []
+            # Display model parameters and evaluation
+            available_stocks = ['ASHOKLEY', 'AJANTPHARM']  # Modify to include your available stocks
             selected_stocks = st.multiselect("Select stocks for prediction", available_stocks)
             
             if selected_stocks:
@@ -129,52 +111,32 @@ def main():
                 
                 if st.button("Simulate and Predict"):
                     for stock_name in selected_stocks:
-                        stock_result = next((result for result in overall_results if result['stock'] == stock_name), None)
+                        stock_file = f"stockdata/{stock_name}.xlsx"
                         
-                        if stock_result:
-                            model = stock_result.get('model')  # Ensure correct model is selected
-                            
-                            # Debug: Verify that the correct model is being selected
-                            st.write(f"Selected model for {stock_name}: {type(model)}")
+                        # Check if the stock data file exists
+                        if os.path.exists(stock_file):
+                            stock_data = pd.read_excel(stock_file, engine='openpyxl')
+                            stock_data['Date'] = pd.to_datetime(stock_data['Date'])
+                            stock_data.set_index('Date', inplace=True)
+
+                            # Check and load/train the model for the selected stock
+                            model = check_and_train_model(stock_name, stock_data)
                             
                             if model:
-                                # Ensure the file name has only one .xlsx extension
-                                if not stock_name.endswith('.xlsx'):
-                                    stock_name += '.xlsx'  # Add the extension only if it's not already present
+                                input_data = np.array([[gdp, inflation, interest_rate, vix]])
                                 
-                                stock_file = f"stockdata/{stock_name}"
-                                
-                                # Debug: Check if the file exists
-                                st.write(f"Looking for stock data file at: {stock_file}")
-                                
-                                if os.path.exists(stock_file):
-                                    stock_data = pd.read_excel(stock_file, engine='openpyxl')
-                                    stock_data['Date'] = pd.to_datetime(stock_data['Date'])
-                                    stock_data.set_index('Date', inplace=True)
-
-                                    input_data = np.array([[gdp, inflation, interest_rate, vix]])
-                                    try:
-                                        if isinstance(model, XGBRegressor) and hasattr(model, 'booster_'):
-                                            st.write(f"Predicting with XGBRegressor for {stock_name}...")
-                                            predicted_returns = model.predict(input_data)
-                                            show_stock_performance(stock_data, predicted_returns)
-                                        elif isinstance(model, Pipeline):
-                                            if hasattr(model.named_steps['model'], 'booster_'):
-                                                st.write(f"Predicting with pipeline model for {stock_name}...")
-                                                predicted_returns = model.predict(input_data)
-                                                show_stock_performance(stock_data, predicted_returns)
-                                            else:
-                                                st.error(f"Model for {stock_name} is not fitted.")
-                                        else:
-                                            st.error(f"Unexpected model type for {stock_name}.")
-                                    except NotFittedError as e:
-                                        st.error(f"Model for {stock_name} is not fitted: {e}")
+                                # Predict using the fitted model
+                                if isinstance(model, Pipeline):
+                                    inner_model = model.named_steps['model']
+                                    predicted_returns = inner_model.predict(input_data)
+                                    show_stock_performance(stock_data, predicted_returns)
+                                elif isinstance(model, XGBRegressor):
+                                    predicted_returns = model.predict(input_data)
+                                    show_stock_performance(stock_data, predicted_returns)
                                 else:
-                                    st.error(f"Stock data file for {stock_name} does not exist at {stock_file}.")
-                            else:
-                                st.error(f"No model found for {stock_name}.")
+                                    st.error(f"Unexpected model type for {stock_name}.")
                         else:
-                            st.error(f"No model found for {stock_name}.")
+                            st.error(f"Stock data file for {stock_name} does not exist at {stock_file}.")
         else:
             st.error("Failed to load the model. Please check the file format.")
     else:

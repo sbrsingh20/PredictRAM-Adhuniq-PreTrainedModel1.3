@@ -1,103 +1,129 @@
-import os
-import pandas as pd
-import joblib
 import streamlit as st
+import joblib
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score
-import xgboost as xgb
+from sklearn.exceptions import NotFittedError
+from xgboost import XGBRegressor
 
-# Function to load stock data from a given stock name
-def load_stock_data(stock_name):
-    # Ensure correct path and extension
-    file_path = f"stockdata/{stock_name}.xlsx"
-    if os.path.exists(file_path):
-        stock_data = pd.read_excel(file_path, engine='openpyxl')
-        return stock_data
-    else:
-        st.error(f"File not found: {file_path}")
+# Load the overall model evaluation file
+def load_model_evaluation(file_path):
+    try:
+        model = joblib.load(file_path)
+        if isinstance(model, list):
+            st.write("Loaded model is a list (perhaps multiple models).")
+        elif isinstance(model, Pipeline):
+            st.write("Loaded model is a pipeline.")
+            if hasattr(model.named_steps['model'], 'booster_'):
+                st.write("Pipeline model is fitted.")
+            else:
+                st.error("Pipeline model is not fitted.")
+        elif isinstance(model, XGBRegressor):
+            st.write("Loaded model is a trained XGBRegressor.")
+            if hasattr(model, 'booster_'):
+                st.write("Model is fitted.")
+            else:
+                st.error("XGBRegressor model is not fitted.")
+        else:
+            st.error(f"Unexpected model type: {type(model)}")
+        return model
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
         return None
 
-# Function to display model parameters
-def display_model_params(model_pipeline):
-    if isinstance(model_pipeline, Pipeline):
-        # Extract model parameters
-        params = model_pipeline.named_steps['model'].get_params()
-        st.write("Model Parameters:")
-        for param, value in params.items():
-            st.write(f"{param}: {value}")
+# Display model parameters for XGBRegressor or pipeline
+def display_model_params(model):
+    st.subheader("Model Parameters")
+    if isinstance(model, Pipeline):
+        if 'model' in model.named_steps:
+            params = model.named_steps['model'].get_params()
+            st.write(params)
+        else:
+            st.error("Pipeline does not have 'model' step.")
+    elif isinstance(model, XGBRegressor):
+        params = model.get_params()
+        st.write(params)
     else:
-        st.write("Model is not recognized or does not have parameters.")
+        st.error("Model is not recognized.")
 
-# Function to display evaluation results
+# Display model evaluation results
 def display_evaluation_results(overall_results):
-    st.write("Model Evaluation Results:")
-    for result in overall_results:
-        st.write(f"Stock: {result['stock']}")
-        st.write(f"Accuracy (R-squared %): {result['accuracy']:.4f}%")
-        st.write(f"R-squared: {result['r2_score']:.4f}")
-        st.write(f"Mean Squared Error: {result['mean_squared_error']:.4f}")
-        st.write("=" * 40)
+    st.subheader("Model Evaluation Results")
+    if isinstance(overall_results, list):
+        for result in overall_results:
+            st.write(f"**Stock**: {result.get('stock', 'Unknown')}")
+            st.write(f"**Accuracy (R-squared %)**: {result.get('accuracy', 0):.4f}%")
+            st.write(f"**R-squared**: {result.get('r2_score', 0):.4f}")
+            st.write(f"**Mean Squared Error**: {result.get('mean_squared_error', 0):.4f}")
+            st.write("="*40)
+    else:
+        st.error("Evaluation results are not in the expected format.")
 
-# Main function for Streamlit app
+# Historical stock performance and predicted returns
+def show_stock_performance(stock_data, predicted_returns):
+    st.subheader("Historical Stock Performance and Predicted Returns")
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(stock_data['Close'], label="Historical Close Price", color='blue')
+    ax.plot(stock_data.index, predicted_returns, label="Predicted Returns", color='red', linestyle='--')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Price / Predicted Returns')
+    ax.set_title('Historical Stock Performance and Predicted Returns')
+    ax.legend()
+    st.pyplot(fig)
+
+# Main Streamlit app
 def main():
-    st.title('Stock Prediction Using Macroeconomic Data')
+    st.title("Stock Prediction with Macroeconomic Parameters")
+    uploaded_model = st.file_uploader("Upload pre-trained model", type="pkl")
     
-    # File upload for pre-trained model
-    uploaded_model = st.file_uploader("Upload pre-trained model", type=["pkl"])
     if uploaded_model is not None:
-        # Load the model
-        model_pipeline = joblib.load(uploaded_model)
+        model_pipeline = load_model_evaluation(uploaded_model)
         
-        # Display model parameters
-        display_model_params(model_pipeline)
-        
-        # Load the overall evaluation results (pkl file)
-        overall_results_filename = 'results/overall_gdp_vix_xgb_model_evaluation.pkl'
-        if os.path.exists(overall_results_filename):
-            overall_results = joblib.load(overall_results_filename)
+        if model_pipeline:
+            display_model_params(model_pipeline)
+            overall_results = model_pipeline if isinstance(model_pipeline, list) else []
             display_evaluation_results(overall_results)
-        else:
-            st.error("No overall evaluation results file found.")
-        
-        # Stock selection for prediction
-        st.subheader("Select Stocks for Prediction")
-        stock_files = [file.replace('.xlsx', '') for file in os.listdir('stockdata') if file.endswith('.xlsx')]
-        selected_stocks = st.multiselect("Choose stock(s)", stock_files)
-
-        if selected_stocks:
-            # Input for macroeconomic parameters
-            st.subheader("Input Macroeconomic Parameters for Prediction")
-            gdp = st.number_input("GDP", value=2.0)  # example default value
-            inflation = st.number_input("Inflation", value=3.0)  # example default value
-            interest_rate = st.number_input("Interest Rate", value=5.0)  # example default value
-            vix_value = st.slider("VIX Value", 10, 40, 20)  # example VIX range from 10 to 40
             
-            # Prepare input data for prediction
-            input_data = pd.DataFrame({
-                'GDP': [gdp] * len(selected_stocks),
-                'Inflation': [inflation] * len(selected_stocks),
-                'Interest Rate': [interest_rate] * len(selected_stocks),
-                'VIX': [vix_value] * len(selected_stocks)
-            })
+            available_stocks = [result['stock'] for result in overall_results] if overall_results else []
+            selected_stocks = st.multiselect("Select stocks for prediction", available_stocks)
+            
+            if selected_stocks:
+                st.subheader("Enter Macroeconomic Parameters")
+                gdp = st.slider("GDP Growth (%)", min_value=-5, max_value=5, value=2)
+                inflation = st.slider("Inflation (%)", min_value=0, max_value=10, value=2)
+                interest_rate = st.slider("Interest Rate (%)", min_value=0, max_value=10, value=2)
+                vix = st.slider("VIX Index", min_value=10, max_value=100, value=20)
+                
+                if st.button("Simulate and Predict"):
+                    for stock_name in selected_stocks:
+                        stock_result = next((result for result in overall_results if result['stock'] == stock_name), None)
+                        model = stock_result['model'] if stock_result else None
 
-            # Predict returns for selected stocks
-            for stock_name in selected_stocks:
-                stock_data = load_stock_data(stock_name)
-                if stock_data is not None:
-                    # Display historical stock performance
-                    st.subheader(f"Historical Performance for {stock_name}")
-                    st.line_chart(stock_data['Close'])
+                        if model:
+                            stock_data = pd.read_excel(f"stockdata/{stock_name}.xlsx", engine='openpyxl')
+                            stock_data['Date'] = pd.to_datetime(stock_data['Date'])
+                            stock_data.set_index('Date', inplace=True)
 
-                    # Predict stock returns
-                    predicted_returns = model_pipeline.predict(input_data)
-                    stock_data['Predicted Returns'] = predicted_returns
-                    st.write(f"Predicted Returns for {stock_name}:")
-                    st.line_chart(stock_data[['Close', 'Predicted Returns']])
-
+                            input_data = np.array([[gdp, inflation, interest_rate, vix]])
+                            try:
+                                if isinstance(model, XGBRegressor) and hasattr(model, 'booster_'):
+                                    predicted_returns = model.predict(input_data)
+                                    show_stock_performance(stock_data, predicted_returns)
+                                elif isinstance(model, Pipeline):
+                                    if hasattr(model.named_steps['model'], 'booster_'):
+                                        predicted_returns = model.predict(input_data)
+                                        show_stock_performance(stock_data, predicted_returns)
+                                    else:
+                                        st.error(f"Model for {stock_name} is not fitted.")
+                                else:
+                                    st.error(f"Unexpected model type for {stock_name}.")
+                            except NotFittedError as e:
+                                st.error(f"Model for {stock_name} is not fitted: {e}")
         else:
-            st.write("Please select one or more stocks for prediction.")
+            st.error("Failed to load the model. Please check the file format.")
+    else:
+        st.warning("Please upload a pre-trained model file.")
 
 if __name__ == "__main__":
     main()

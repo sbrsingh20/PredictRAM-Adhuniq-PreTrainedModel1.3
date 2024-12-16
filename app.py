@@ -8,8 +8,11 @@ from sklearn.exceptions import NotFittedError
 from xgboost import XGBRegressor
 import os
 
-# Load the overall model evaluation file
-def load_model_evaluation(file_path):
+# Path to the folder where stock models are stored (e.g., result folder)
+RESULT_FOLDER = 'result/'
+
+# Load a pre-trained model from a .pkl file
+def load_model(file_path):
     try:
         model = joblib.load(file_path)
         if isinstance(model, list):
@@ -73,13 +76,41 @@ def show_stock_performance(stock_data, predicted_returns):
     ax.legend()
     st.pyplot(fig)
 
+# Check if the model is pre-trained or needs training
+def check_and_train_model(stock_name, stock_data):
+    # Define the model if it's not loaded yet
+    model = None
+
+    # Check if model already exists in the result folder
+    model_path = os.path.join(RESULT_FOLDER, f"{stock_name}.pkl")
+    if os.path.exists(model_path):
+        # Load the pre-trained model if it exists
+        st.write(f"Loading pre-trained model for {stock_name}...")
+        model = load_model(model_path)
+    else:
+        st.write(f"No pre-trained model found for {stock_name}. Training a new model...")
+
+        # Prepare data (example, can be adjusted as per available features)
+        X = stock_data[['GDP Growth', 'Inflation', 'Interest Rate', 'VIX']]  # Assumed features
+        y = stock_data['Close']  # Target variable, assuming you're predicting the Close price
+
+        # Define and train a new model
+        model = XGBRegressor()
+        model.fit(X, y)
+
+        # Save the newly trained model for future use
+        joblib.dump(model, model_path)
+        st.write(f"New model trained and saved for {stock_name}.")
+
+    return model
+
 # Main Streamlit app
 def main():
     st.title("Stock Prediction with Macroeconomic Parameters")
     uploaded_model = st.file_uploader("Upload pre-trained model", type="pkl")
     
     if uploaded_model is not None:
-        model_pipeline = load_model_evaluation(uploaded_model)
+        model_pipeline = load_model(uploaded_model)
         
         if model_pipeline:
             display_model_params(model_pipeline)

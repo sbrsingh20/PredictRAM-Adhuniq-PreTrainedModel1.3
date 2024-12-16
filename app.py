@@ -99,39 +99,51 @@ def main():
                 if st.button("Simulate and Predict"):
                     for stock_name in selected_stocks:
                         stock_result = next((result for result in overall_results if result['stock'] == stock_name), None)
-                        model = stock_result['model'] if stock_result else None
-
-                        if model:
-                            # Ensure the file name has only one .xlsx extension
-                            if not stock_name.endswith('.xlsx'):
-                                stock_name += '.xlsx'  # Add the extension only if it's not already present
+                        
+                        if stock_result:
+                            model = stock_result.get('model')  # Ensure correct model is selected
                             
-                            stock_file = f"stockdata/{stock_name}"
+                            # Debug: Verify that the correct model is being selected
+                            st.write(f"Selected model for {stock_name}: {type(model)}")
                             
-                            if os.path.exists(stock_file):
-                                stock_data = pd.read_excel(stock_file, engine='openpyxl')
-                                stock_data['Date'] = pd.to_datetime(stock_data['Date'])
-                                stock_data.set_index('Date', inplace=True)
+                            if model:
+                                # Ensure the file name has only one .xlsx extension
+                                if not stock_name.endswith('.xlsx'):
+                                    stock_name += '.xlsx'  # Add the extension only if it's not already present
+                                
+                                stock_file = f"stockdata/{stock_name}"
+                                
+                                # Debug: Check if the file exists
+                                st.write(f"Looking for stock data file at: {stock_file}")
+                                
+                                if os.path.exists(stock_file):
+                                    stock_data = pd.read_excel(stock_file, engine='openpyxl')
+                                    stock_data['Date'] = pd.to_datetime(stock_data['Date'])
+                                    stock_data.set_index('Date', inplace=True)
 
-                                input_data = np.array([[gdp, inflation, interest_rate, vix]])
-                                try:
-                                    if isinstance(model, XGBRegressor) and hasattr(model, 'booster_'):
-                                        st.write(f"Predicting with XGBRegressor for {stock_name}...")
-                                        predicted_returns = model.predict(input_data)
-                                        show_stock_performance(stock_data, predicted_returns)
-                                    elif isinstance(model, Pipeline):
-                                        if hasattr(model.named_steps['model'], 'booster_'):
-                                            st.write(f"Predicting with pipeline model for {stock_name}...")
+                                    input_data = np.array([[gdp, inflation, interest_rate, vix]])
+                                    try:
+                                        if isinstance(model, XGBRegressor) and hasattr(model, 'booster_'):
+                                            st.write(f"Predicting with XGBRegressor for {stock_name}...")
                                             predicted_returns = model.predict(input_data)
                                             show_stock_performance(stock_data, predicted_returns)
+                                        elif isinstance(model, Pipeline):
+                                            if hasattr(model.named_steps['model'], 'booster_'):
+                                                st.write(f"Predicting with pipeline model for {stock_name}...")
+                                                predicted_returns = model.predict(input_data)
+                                                show_stock_performance(stock_data, predicted_returns)
+                                            else:
+                                                st.error(f"Model for {stock_name} is not fitted.")
                                         else:
-                                            st.error(f"Model for {stock_name} is not fitted.")
-                                    else:
-                                        st.error(f"Unexpected model type for {stock_name}.")
-                                except NotFittedError as e:
-                                    st.error(f"Model for {stock_name} is not fitted: {e}")
+                                            st.error(f"Unexpected model type for {stock_name}.")
+                                    except NotFittedError as e:
+                                        st.error(f"Model for {stock_name} is not fitted: {e}")
+                                else:
+                                    st.error(f"Stock data file for {stock_name} does not exist at {stock_file}.")
                             else:
-                                st.error(f"Stock data file for {stock_name} does not exist at {stock_file}.")
+                                st.error(f"No model found for {stock_name}.")
+                        else:
+                            st.error(f"No model found for {stock_name}.")
         else:
             st.error("Failed to load the model. Please check the file format.")
     else:

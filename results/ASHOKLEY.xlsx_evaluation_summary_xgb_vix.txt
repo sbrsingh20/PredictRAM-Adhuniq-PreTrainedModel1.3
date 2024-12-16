@@ -1,0 +1,5 @@
+Model Evaluation for ASHOKLEY.xlsx
+========================================
+R-squared: -0.1587
+Mean Squared Error: 0.0002
+========================================

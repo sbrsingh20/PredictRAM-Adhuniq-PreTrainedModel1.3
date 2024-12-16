@@ -1,0 +1,5 @@
+Model Evaluation for BAJFINANCE.xlsx
+========================================
+R-squared: -0.0543
+Mean Squared Error: 0.0002
+========================================

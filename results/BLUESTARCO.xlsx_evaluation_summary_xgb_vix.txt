@@ -1,0 +1,5 @@
+Model Evaluation for BLUESTARCO.xlsx
+========================================
+R-squared: -0.0591
+Mean Squared Error: 0.0005
+========================================

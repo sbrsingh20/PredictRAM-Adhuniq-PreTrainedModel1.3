@@ -1,0 +1,5 @@
+Model Evaluation for BAJAJFINSV.xlsx
+========================================
+R-squared: -0.1812
+Mean Squared Error: 0.0002
+========================================

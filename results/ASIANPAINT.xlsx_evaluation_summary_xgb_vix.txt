@@ -1,0 +1,5 @@
+Model Evaluation for ASIANPAINT.xlsx
+========================================
+R-squared: -0.1660
+Mean Squared Error: 0.0001
+========================================

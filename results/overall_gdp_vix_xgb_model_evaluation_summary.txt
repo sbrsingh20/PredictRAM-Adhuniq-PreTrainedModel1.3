@@ -1,0 +1,72 @@
+Overall Model Evaluation
+========================================
+Stock: ADANIENT.xlsx
+Accuracy (R-squared %): -59.9254%
+R-squared: -0.5993
+Mean Squared Error: 0.0025
+========================================
+Stock: ADANIPORTS.xlsx
+Accuracy (R-squared %): -25.0246%
+R-squared: -0.2502
+Mean Squared Error: 0.0007
+========================================
+Stock: AJANTPHARM.xlsx
+Accuracy (R-squared %): -23.1919%
+R-squared: -0.2319
+Mean Squared Error: 0.0005
+========================================
+Stock: ASHOKLEY.xlsx
+Accuracy (R-squared %): -15.8679%
+R-squared: -0.1587
+Mean Squared Error: 0.0002
+========================================
+Stock: ASIANPAINT.xlsx
+Accuracy (R-squared %): -16.6048%
+R-squared: -0.1660
+Mean Squared Error: 0.0001
+========================================
+Stock: AUBANK.xlsx
+Accuracy (R-squared %): -11.8838%
+R-squared: -0.1188
+Mean Squared Error: 0.0002
+========================================
+Stock: AXISBANK.xlsx
+Accuracy (R-squared %): -2.5477%
+R-squared: -0.0255
+Mean Squared Error: 0.0001
+========================================
+Stock: BAJAJFINSV.xlsx
+Accuracy (R-squared %): -18.1240%
+R-squared: -0.1812
+Mean Squared Error: 0.0002
+========================================
+Stock: BAJFINANCE.xlsx
+Accuracy (R-squared %): -5.4307%
+R-squared: -0.0543
+Mean Squared Error: 0.0002
+========================================
+Stock: BANKBARODA.xlsx
+Accuracy (R-squared %): -5.9202%
+R-squared: -0.0592
+Mean Squared Error: 0.0004
+========================================
+Stock: BEL.xlsx
+Accuracy (R-squared %): -13.2655%
+R-squared: -0.1327
+Mean Squared Error: 0.0003
+========================================
+Stock: BHARTIARTL.xlsx
+Accuracy (R-squared %): -13.1508%
+R-squared: -0.1315
+Mean Squared Error: 0.0002
+========================================
+Stock: BHEL.xlsx
+Accuracy (R-squared %): -23.3614%
+R-squared: -0.2336
+Mean Squared Error: 0.0005
+========================================
+Stock: BLUESTARCO.xlsx
+Accuracy (R-squared %): -5.9131%
+R-squared: -0.0591
+Mean Squared Error: 0.0005
+========================================

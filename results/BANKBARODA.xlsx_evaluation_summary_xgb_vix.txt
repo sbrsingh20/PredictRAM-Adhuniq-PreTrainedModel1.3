@@ -1,0 +1,5 @@
+Model Evaluation for BANKBARODA.xlsx
+========================================
+R-squared: -0.0592
+Mean Squared Error: 0.0004
+========================================

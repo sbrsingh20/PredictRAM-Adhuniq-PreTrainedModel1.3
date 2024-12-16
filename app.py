@@ -62,8 +62,10 @@ def show_stock_performance(stock_data, predicted_returns):
 def check_and_load_model(stock_name):
     model = None
 
-    # Look for the pre-trained model in the result folder
-    model_path = os.path.join(RESULT_FOLDER, f"{stock_name}.pkl")
+    # Look for the pre-trained model in the result folder with specific name pattern
+    model_filename = f"{stock_name}.xlsx_gdp_vix_stock_prediction_xgb_model.pkl"
+    model_path = os.path.join(RESULT_FOLDER, model_filename)
+
     if os.path.exists(model_path):
         st.write(f"Loading pre-trained model for {stock_name}...")
         model = load_model(model_path)
@@ -72,7 +74,7 @@ def check_and_load_model(stock_name):
             st.error(f"Model for {stock_name} is not fitted.")
             return None
     else:
-        st.error(f"No pre-trained model found for {stock_name} in the result folder.")
+        st.error(f"No pre-trained model found for {stock_name} in the result folder. Expected file: {model_filename}")
     
     return model
 

@@ -4,34 +4,47 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.exceptions import NotFittedError
-from sklearn.pipeline import Pipeline
 from xgboost import XGBRegressor
 
 # Load the overall model evaluation file
 def load_model_evaluation(file_path):
     try:
-        # Load the pre-trained model (pipeline)
+        # Load the pre-trained model (pipeline or model)
         model = joblib.load(file_path)
-        # Verify that it's a pipeline and has been fitted
-        if isinstance(model, Pipeline):
-            model_step = model.named_steps['model']  # Assuming 'model' is the name of the XGBRegressor
-            if hasattr(model_step, 'booster_'):
-                st.write("Model loaded and appears to be fitted.")
+        # Check if the model is a pipeline or just a trained model
+        if isinstance(model, list):
+            st.write("Loaded model is a list (perhaps multiple models).")
+            # You might need to handle this case specifically
+        elif isinstance(model, Pipeline):
+            st.write("Loaded model is a pipeline.")
+            if hasattr(model.named_steps['model'], 'booster_'):
+                st.write("Pipeline model is fitted.")
             else:
-                st.error("Model is not fitted.")
+                st.error("Pipeline model is not fitted.")
+        elif isinstance(model, XGBRegressor):
+            st.write("Loaded model is a trained XGBRegressor (not in a pipeline).")
+            if hasattr(model, 'booster_'):
+                st.write("Model is fitted.")
+            else:
+                st.error("XGBRegressor model is not fitted.")
         else:
-            st.error("The loaded model is not a valid pipeline.")
+            st.error(f"Unexpected model type: {type(model)}")
         return model
     except Exception as e:
         st.error(f"Error loading model: {e}")
         return None
 
-# Display model parameters
+# Display model parameters for XGBRegressor or pipeline
 def display_model_params(model):
     st.subheader("Model Parameters")
-    if model:
+    if isinstance(model, Pipeline):
         params = model.named_steps['model'].get_params()
         st.write(params)
+    elif isinstance(model, XGBRegressor):
+        params = model.get_params()
+        st.write(params)
+    else:
+        st.error("Model is not recognized.")
 
 # Display model evaluation results
 def display_evaluation_results(overall_results):
@@ -106,14 +119,20 @@ def main():
                         
                         try:
                             # Check if the model is fitted before making predictions
-                            if hasattr(model.named_steps['model'], 'booster_'):
+                            if isinstance(model, XGBRegressor) and hasattr(model, 'booster_'):
                                 # Predict the stock returns using the pre-trained model
                                 predicted_returns = model.predict(input_data)
 
                                 # Show historical performance and predicted returns
                                 show_stock_performance(stock_data, predicted_returns)
+                            elif isinstance(model, Pipeline):
+                                if hasattr(model.named_steps['model'], 'booster_'):
+                                    predicted_returns = model.predict(input_data)
+                                    show_stock_performance(stock_data, predicted_returns)
+                                else:
+                                    st.error(f"Model for {stock_name} is not fitted.")
                             else:
-                                st.error(f"Model for {stock_name} is not fitted properly.")
+                                st.error(f"Unexpected model type for {stock_name}.")
                         except NotFittedError as e:
                             st.error(f"Model for {stock_name} is not fitted: {e}")
 

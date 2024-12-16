@@ -97,34 +97,39 @@ def main():
                 vix = st.slider("VIX Index", min_value=10, max_value=100, value=20)
                 
                 if st.button("Simulate and Predict"):
-                    for stock_name in selected_stocks:
-                        stock_result = next((result for result in overall_results if result['stock'] == stock_name), None)
-                        model = stock_result['model'] if stock_result else None
+    for stock_name in selected_stocks:
+        stock_result = next((result for result in overall_results if result['stock'] == stock_name), None)
+        model = stock_result['model'] if stock_result else None
 
-                        if model:
-                            stock_file = f"stockdata/{stock_name}.xlsx"
-                            if os.path.exists(stock_file):
-                                stock_data = pd.read_excel(stock_file, engine='openpyxl')
-                                stock_data['Date'] = pd.to_datetime(stock_data['Date'])
-                                stock_data.set_index('Date', inplace=True)
+        if model:
+            # Ensure the file name has only one .xlsx extension
+            if not stock_name.endswith('.xlsx'):
+                stock_name += '.xlsx'  # Add the extension only if it's not already present
+            
+            stock_file = f"stockdata/{stock_name}"
+            
+            if os.path.exists(stock_file):
+                stock_data = pd.read_excel(stock_file, engine='openpyxl')
+                stock_data['Date'] = pd.to_datetime(stock_data['Date'])
+                stock_data.set_index('Date', inplace=True)
 
-                                input_data = np.array([[gdp, inflation, interest_rate, vix]])
-                                try:
-                                    if isinstance(model, XGBRegressor) and hasattr(model, 'booster_'):
-                                        predicted_returns = model.predict(input_data)
-                                        show_stock_performance(stock_data, predicted_returns)
-                                    elif isinstance(model, Pipeline):
-                                        if hasattr(model.named_steps['model'], 'booster_'):
-                                            predicted_returns = model.predict(input_data)
-                                            show_stock_performance(stock_data, predicted_returns)
-                                        else:
-                                            st.error(f"Model for {stock_name} is not fitted.")
-                                    else:
-                                        st.error(f"Unexpected model type for {stock_name}.")
-                                except NotFittedError as e:
-                                    st.error(f"Model for {stock_name} is not fitted: {e}")
-                            else:
-                                st.error(f"Stock data file for {stock_name} does not exist at {stock_file}.")
+                input_data = np.array([[gdp, inflation, interest_rate, vix]])
+                try:
+                    if isinstance(model, XGBRegressor) and hasattr(model, 'booster_'):
+                        predicted_returns = model.predict(input_data)
+                        show_stock_performance(stock_data, predicted_returns)
+                    elif isinstance(model, Pipeline):
+                        if hasattr(model.named_steps['model'], 'booster_'):
+                            predicted_returns = model.predict(input_data)
+                            show_stock_performance(stock_data, predicted_returns)
+                        else:
+                            st.error(f"Model for {stock_name} is not fitted.")
+                    else:
+                        st.error(f"Unexpected model type for {stock_name}.")
+                except NotFittedError as e:
+                    st.error(f"Model for {stock_name} is not fitted: {e}")
+            else:
+                st.error(f"Stock data file for {stock_name} does not exist at {stock_file}.")
         else:
             st.error("Failed to load the model. Please check the file format.")
     else:

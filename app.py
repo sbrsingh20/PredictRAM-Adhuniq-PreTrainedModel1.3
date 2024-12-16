@@ -10,7 +10,8 @@ import xgboost as xgb
 
 # Function to load stock data from a given stock name
 def load_stock_data(stock_name):
-    file_path = f"stockdata/{stock_name}.xlsx"  # Ensure correct path and extension
+    # Ensure correct path and extension
+    file_path = f"stockdata/{stock_name}.xlsx"
     if os.path.exists(file_path):
         stock_data = pd.read_excel(file_path, engine='openpyxl')
         return stock_data
@@ -27,7 +28,7 @@ def display_model_params(model_pipeline):
         for param, value in params.items():
             st.write(f"{param}: {value}")
     else:
-        st.write("Model not recognized.")
+        st.write("Model is not recognized or does not have parameters.")
 
 # Function to display evaluation results
 def display_evaluation_results(overall_results):
@@ -49,7 +50,7 @@ def main():
         # Load the model
         model_pipeline = joblib.load(uploaded_model)
         
-        # Display model parameters and evaluation results
+        # Display model parameters
         display_model_params(model_pipeline)
         
         # Load the overall evaluation results (pkl file)

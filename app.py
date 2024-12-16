@@ -8,9 +8,10 @@ from sklearn.exceptions import NotFittedError
 from xgboost import XGBRegressor
 import os
 
+# Path to the result folder where pre-trained models are stored
 RESULT_FOLDER = 'result/'
 
-# Load a pre-trained model from a .pkl file
+# Load a pre-trained model from a .pkl file in the result folder
 def load_model(file_path):
     try:
         model = joblib.load(file_path)
@@ -36,7 +37,6 @@ def load_model(file_path):
 
 # Check if the model inside the pipeline is fitted
 def check_model_fitted(model):
-    # Check if the pipeline contains a model that is an instance of XGBRegressor
     if isinstance(model, Pipeline):
         if 'model' in model.named_steps:
             inner_model = model.named_steps['model']
@@ -58,35 +58,22 @@ def show_stock_performance(stock_data, predicted_returns):
     ax.legend()
     st.pyplot(fig)
 
-# Check if the model is pre-trained or needs training
-def check_and_train_model(stock_name, stock_data):
+# Check and load the pre-trained model for the selected stock
+def check_and_load_model(stock_name):
     model = None
 
-    # Check if model already exists in the result folder
+    # Look for the pre-trained model in the result folder
     model_path = os.path.join(RESULT_FOLDER, f"{stock_name}.pkl")
     if os.path.exists(model_path):
-        # Load the pre-trained model if it exists
         st.write(f"Loading pre-trained model for {stock_name}...")
         model = load_model(model_path)
-        # Check if model is fitted
+        # Check if the model is fitted
         if model and not check_model_fitted(model):
             st.error(f"Model for {stock_name} is not fitted.")
             return None
     else:
-        st.write(f"No pre-trained model found for {stock_name}. Training a new model...")
-        
-        # Train new model (example)
-        X = stock_data[['GDP Growth', 'Inflation', 'Interest Rate', 'VIX']]  # Features
-        y = stock_data['Close']  # Target variable
-
-        # Define and train a new model
-        model = XGBRegressor()
-        model.fit(X, y)
-
-        # Save the newly trained model for future use
-        joblib.dump(model, model_path)
-        st.write(f"New model trained and saved for {stock_name}.")
-
+        st.error(f"No pre-trained model found for {stock_name} in the result folder.")
+    
     return model
 
 # Main Streamlit app
@@ -119,8 +106,8 @@ def main():
                             stock_data['Date'] = pd.to_datetime(stock_data['Date'])
                             stock_data.set_index('Date', inplace=True)
 
-                            # Check and load/train the model for the selected stock
-                            model = check_and_train_model(stock_name, stock_data)
+                            # Check and load the model for the selected stock
+                            model = check_and_load_model(stock_name)
                             
                             if model:
                                 input_data = np.array([[gdp, inflation, interest_rate, vix]])

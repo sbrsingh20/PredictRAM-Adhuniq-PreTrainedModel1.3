@@ -1,14 +1,27 @@
 import streamlit as st
 import joblib
-import pandas as pd
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.exceptions import NotFittedError
+from sklearn.pipeline import Pipeline
+from xgboost import XGBRegressor
 
 # Load the overall model evaluation file
 def load_model_evaluation(file_path):
     try:
-        return joblib.load(file_path)
+        # Load the pre-trained model (pipeline)
+        model = joblib.load(file_path)
+        # Verify that it's a pipeline and has been fitted
+        if isinstance(model, Pipeline):
+            model_step = model.named_steps['model']  # Assuming 'model' is the name of the XGBRegressor
+            if hasattr(model_step, 'booster_'):
+                st.write("Model loaded and appears to be fitted.")
+            else:
+                st.error("Model is not fitted.")
+        else:
+            st.error("The loaded model is not a valid pipeline.")
+        return model
     except Exception as e:
         st.error(f"Error loading model: {e}")
         return None
@@ -54,16 +67,17 @@ def main():
     
     if uploaded_model is not None:
         # Load the overall model evaluation
-        overall_results = load_model_evaluation(uploaded_model)
+        model_pipeline = load_model_evaluation(uploaded_model)
         
-        if overall_results:
+        if model_pipeline:
             # Step 2: Display model parameters and evaluation results
-            model_pipeline = overall_results[0]['model']
             display_model_params(model_pipeline)
+            # Example of evaluation results (replace with actual loading logic for `overall_results`)
+            overall_results = joblib.load(uploaded_model)  # Assuming this is the evaluation result
             display_evaluation_results(overall_results)
             
             # Step 3: Select multiple stocks for prediction
-            available_stocks = [result['stock'] for result in overall_results]
+            available_stocks = [result['stock'] for result in overall_results]  # Assuming `overall_results` contains stock names
             selected_stocks = st.multiselect("Select stocks for prediction", available_stocks)
 
             if selected_stocks:
@@ -91,15 +105,15 @@ def main():
                         input_data = np.array([[gdp, inflation, interest_rate, vix]])
                         
                         try:
-                            # Ensure that the model has been fitted before predicting
-                            if model.named_steps['model'].score == 'not_fitted':
-                                st.error(f"The model for {stock_name} is not yet fitted.")
-                            else:
+                            # Check if the model is fitted before making predictions
+                            if hasattr(model.named_steps['model'], 'booster_'):
                                 # Predict the stock returns using the pre-trained model
                                 predicted_returns = model.predict(input_data)
 
                                 # Show historical performance and predicted returns
                                 show_stock_performance(stock_data, predicted_returns)
+                            else:
+                                st.error(f"Model for {stock_name} is not fitted properly.")
                         except NotFittedError as e:
                             st.error(f"Model for {stock_name} is not fitted: {e}")
 

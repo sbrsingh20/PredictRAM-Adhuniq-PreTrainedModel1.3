@@ -3,6 +3,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.pipeline import Pipeline  # Import Pipeline
 from sklearn.exceptions import NotFittedError
 from xgboost import XGBRegressor
 

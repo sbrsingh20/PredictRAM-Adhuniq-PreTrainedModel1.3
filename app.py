@@ -97,9 +97,9 @@ def main():
                 vix = st.slider("VIX Index", min_value=10, max_value=100, value=20)
                 
                 if st.button("Simulate and Predict"):
-    for stock_name in selected_stocks:
-        stock_result = next((result for result in overall_results if result['stock'] == stock_name), None)
-        model = stock_result['model'] if stock_result else None
+                   for stock_name in selected_stocks:
+                    stock_result = next((result for result in overall_results if result['stock'] == stock_name), None)
+                    model = stock_result['model'] if stock_result else None
 
         if model:
             # Ensure the file name has only one .xlsx extension

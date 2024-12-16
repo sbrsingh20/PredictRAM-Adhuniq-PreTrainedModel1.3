@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from sklearn.pipeline import Pipeline
 from sklearn.exceptions import NotFittedError
 from xgboost import XGBRegressor
+import os
 
 # Load the overall model evaluation file
 def load_model_evaluation(file_path):
@@ -101,25 +102,29 @@ def main():
                         model = stock_result['model'] if stock_result else None
 
                         if model:
-                            stock_data = pd.read_excel(f"stockdata/{stock_name}.xlsx", engine='openpyxl')
-                            stock_data['Date'] = pd.to_datetime(stock_data['Date'])
-                            stock_data.set_index('Date', inplace=True)
+                            stock_file = f"stockdata/{stock_name}.xlsx"
+                            if os.path.exists(stock_file):
+                                stock_data = pd.read_excel(stock_file, engine='openpyxl')
+                                stock_data['Date'] = pd.to_datetime(stock_data['Date'])
+                                stock_data.set_index('Date', inplace=True)
 
-                            input_data = np.array([[gdp, inflation, interest_rate, vix]])
-                            try:
-                                if isinstance(model, XGBRegressor) and hasattr(model, 'booster_'):
-                                    predicted_returns = model.predict(input_data)
-                                    show_stock_performance(stock_data, predicted_returns)
-                                elif isinstance(model, Pipeline):
-                                    if hasattr(model.named_steps['model'], 'booster_'):
+                                input_data = np.array([[gdp, inflation, interest_rate, vix]])
+                                try:
+                                    if isinstance(model, XGBRegressor) and hasattr(model, 'booster_'):
                                         predicted_returns = model.predict(input_data)
                                         show_stock_performance(stock_data, predicted_returns)
+                                    elif isinstance(model, Pipeline):
+                                        if hasattr(model.named_steps['model'], 'booster_'):
+                                            predicted_returns = model.predict(input_data)
+                                            show_stock_performance(stock_data, predicted_returns)
+                                        else:
+                                            st.error(f"Model for {stock_name} is not fitted.")
                                     else:
-                                        st.error(f"Model for {stock_name} is not fitted.")
-                                else:
-                                    st.error(f"Unexpected model type for {stock_name}.")
-                            except NotFittedError as e:
-                                st.error(f"Model for {stock_name} is not fitted: {e}")
+                                        st.error(f"Unexpected model type for {stock_name}.")
+                                except NotFittedError as e:
+                                    st.error(f"Model for {stock_name} is not fitted: {e}")
+                            else:
+                                st.error(f"Stock data file for {stock_name} does not exist at {stock_file}.")
         else:
             st.error("Failed to load the model. Please check the file format.")
     else:
